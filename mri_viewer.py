@@ -157,6 +157,9 @@ class MRIViewer(QMainWindow):
         return widget
 
     def load_image(self):
+        """
+        Load a new MRI image and reset the coil grid.
+        """
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open MRI File", "", "MATLAB Files (*.mat);;All Files (*)"
         )
@@ -167,9 +170,15 @@ class MRIViewer(QMainWindow):
                 self.time_slider.findChild(QSlider).setMaximum(self.nt - 1)
                 self.slice_slider.findChild(QSlider).setMaximum(self.nz - 1)
                 self.switch_space_button.setEnabled(True)
-                self.save_button.setEnabled(True)  # Enable after loading
-                self.play_button.setEnabled(True)  # Enable after loading
-                self.tab_widget.setTabEnabled(1, True)  # Enable coil images tab
+                self.save_button.setEnabled(True)
+                self.play_button.setEnabled(True)
+                self.tab_widget.setTabEnabled(1, True)
+
+                # Reset grid dimensions
+                if hasattr(self, 'grid_rows'):
+                    del self.grid_rows
+                    del self.grid_cols
+
                 self.update_slice()
             except Exception as e:
                 print(f"Failed to load image: {e}")
@@ -236,68 +245,47 @@ class MRIViewer(QMainWindow):
 
     def update_coil_images(self, time_index, slice_index):
         """
-        Update coil images in the coil tab with optimized grid dimensions for vertical and horizontal spacing.
+        Update coil images in the coil tab using precomputed grid dimensions.
+        Only recalculate the grid layout if it has not been computed or the tab has been resized.
         """
-        # Clear the current layout
+        if not hasattr(self, 'grid_rows') or not hasattr(self, 'grid_cols'):
+            # Compute grid dimensions
+            available_width = self.coil_tab.width()
+            available_height = self.coil_tab.height()
+            margin, spacing = 5, 5
+
+            total_margin_width = 2 * margin + (self.nc - 1) * spacing
+            total_margin_height = 2 * margin + (self.nc - 1) * spacing
+            adjusted_width = available_width - total_margin_width
+            adjusted_height = available_height - total_margin_height
+
+            ny, nx = self.kdata.shape[3:5]  # Assuming shape [nt, nz, nc, ny, nx, 2]
+            aspect_ratio = nx / ny
+
+            min_whitespace = float('inf')
+            for rows in range(1, self.nc + 1):
+                cols = int(np.ceil(self.nc / rows))
+                cell_width = adjusted_width // cols
+                cell_height = int(cell_width / aspect_ratio)
+
+                if cell_height * rows <= adjusted_height:
+                    whitespace = (adjusted_height - cell_height * rows) + (adjusted_width - cell_width * cols)
+                    if whitespace < min_whitespace:
+                        min_whitespace = whitespace
+                        self.grid_rows, self.grid_cols = rows, cols
+                        self.cell_width, self.cell_height = cell_width, cell_height
+
+            # Debugging: Log layout information
+            print(f"Grid computed: {self.grid_rows}x{self.grid_cols}, Cell size: {self.cell_width}x{self.cell_height}px")
+
+        # Clear existing grid images
         while self.coil_layout.count():
             item = self.coil_layout.takeAt(0)
             widget = item.widget()
             if widget:
                 widget.deleteLater()
 
-        # Determine available space
-        available_width = self.coil_tab.width()
-        available_height = self.coil_tab.height()
-
-        # Margins and spacing
-        spacing = 5  # Spacing between images
-        margin = 5   # Outer margin around the grid
-        total_margin_width = 2 * margin + (self.nc - 1) * spacing
-        total_margin_height = 2 * margin + (self.nc - 1) * spacing
-
-        # Adjust available space for margins and spacing
-        adjusted_width = available_width - total_margin_width
-        adjusted_height = available_height - total_margin_height
-
-        # Get image dimensions from the first coil image
-        ny, nx = self.kdata.shape[3:5]  # Assuming shape [nt, nz, nc, ny, nx, 2]
-        aspect_ratio = nx / ny  # Width-to-height ratio
-
-        # Find optimal grid dimensions to minimize vertical whitespace
-        best_rows, best_cols = None, None
-        best_cell_width, best_cell_height = None, None
-        min_whitespace = float('inf')
-
-        # Iterate over possible row counts to find the best fit
-        for rows in range(1, self.nc + 1):
-            cols = int(np.ceil(self.nc / rows))
-            cell_width = adjusted_width // cols
-            cell_height = int(cell_width / aspect_ratio)
-
-            # Ensure cells fit within the available height
-            if cell_height * rows > adjusted_height:
-                continue  # Skip configurations that exceed the height
-
-            # Calculate total whitespace
-            total_vertical_whitespace = adjusted_height - (cell_height * rows)
-            total_horizontal_whitespace = adjusted_width - (cell_width * cols)
-            whitespace = total_vertical_whitespace + total_horizontal_whitespace
-
-            # Check if this configuration minimizes whitespace
-            if whitespace < min_whitespace:
-                min_whitespace = whitespace
-                best_rows, best_cols = rows, cols
-                best_cell_width, best_cell_height = cell_width, cell_height
-
-        # Debugging: Log layout information
-        print(f"Best grid: {best_rows}x{best_cols}, Cell size: {best_cell_width}x{best_cell_height}px")
-
-        # Set layout spacing and margins
-        self.coil_layout.setHorizontalSpacing(spacing)
-        self.coil_layout.setVerticalSpacing(spacing)
-        self.coil_layout.setContentsMargins(margin, margin, margin, margin)
-
-        # Add each coil image to the grid
+        # Add each coil image to the grid using precomputed dimensions
         for i in range(self.nc):
             coil_data = self.kdata[time_index, slice_index, i, ..., 0] + 1j * self.kdata[time_index, slice_index, i, ..., 1]
             if not self.show_kspace:
@@ -306,9 +294,9 @@ class MRIViewer(QMainWindow):
             coil_data = np.log1p(np.abs(coil_data)) if self.show_kspace else coil_data
             coil_data = (coil_data / np.max(coil_data) * 255).astype(np.uint8)
 
-            # Create a QLabel for the coil image
-            coil_label = self.create_coil_label(coil_data, best_cell_width, best_cell_height, i)
-            self.coil_layout.addWidget(coil_label, i // best_cols, i % best_cols)
+            coil_label = self.create_coil_label(coil_data, self.cell_width, self.cell_height, i)
+            self.coil_layout.addWidget(coil_label, i // self.grid_cols, i % self.grid_cols)
+
 
     def create_coil_label(self, coil_data, width, height, index):
         """
@@ -406,7 +394,10 @@ class MRIViewer(QMainWindow):
             # Composite tab resizing
             self.update_slice()
         elif current_tab == self.coil_tab:
-            # Multicoil grid resizing
+            # Reset grid dimensions to force recalculation on resize
+            if hasattr(self, 'grid_rows'):
+                del self.grid_rows
+                del self.grid_cols
             self.update_coil_images(
                 self.time_slider.findChild(QSlider).value(),
                 self.slice_slider.findChild(QSlider).value()
@@ -446,7 +437,10 @@ class MRIViewer(QMainWindow):
             # Update the composite image view
             self.update_slice()
         elif current_tab == self.coil_tab:
-            # Update the multicoil grid view
+            # Reset grid dimensions to force recalculation on tab switch
+            if hasattr(self, 'grid_rows'):
+                del self.grid_rows
+                del self.grid_cols
             self.update_coil_images(
                 self.time_slider.findChild(QSlider).value(),
                 self.slice_slider.findChild(QSlider).value()
