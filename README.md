@@ -4,6 +4,11 @@ This application is a Python-based GUI for visualizing MRI data in both **k-spac
 
 ---
 
+<p align="center">
+  <img src="assets/demo.gif" alt="animated" />
+</p>
+
+
 ## **Features**
 - Load and visualize large MRI datasets stored in `.mat` or `.h5` files.
 - Toggle between **k-space** and **image space** visualizations for all images.
