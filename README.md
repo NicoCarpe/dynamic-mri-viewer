@@ -1,22 +1,20 @@
 # **Dynamic MRI Viewer**
 
-This application is a Python-based GUI for visualizing MRI data in both **k-space** (frequency domain) and **image space** (spatial domain). It supports composite image display as well as individual coil images, making it a useful tool for exploring dynamic MRI datasets.
+This application is a Python-based GUI for visualizing MRI data in both **k-space** (frequency domain) and **image space** (spatial domain). It allows for the display of both the composite image and the individual coil images.
+
+---
 
 ## **Features**
 - Load and visualize large MRI datasets stored in `.mat` or `.h5` files.
-- Toggle between **k-space** and **image space** visualizations.
-- View individual coil images in a separate tab with synchronized slice and time controls.
+- Toggle between **k-space** and **image space** visualizations for all images.
+- Individual coil images displayed in separate tabs with synchronized slice and time controls.
+- Interactive sliders for slice and time navigation, with real-time playback functionality.
 - Proportional image resizing to prevent distortion.
 
 ---
 
 ## **Requirements**
-### **Python Packages**
-- `numpy`
-- `PyQt5`
-- `h5py`
-
-Install the required packages using:
+Install the required packages:
 
 ```bash
 pip install numpy PyQt5 h5py
@@ -27,7 +25,7 @@ pip install numpy PyQt5 h5py
 ## **How to Use**
 
 ### **1. Launch the Application**
-Run the application by executing:
+Run the application:
 
 ```bash
 python mri_viewer.py
@@ -40,9 +38,7 @@ python mri_viewer.py
 ### **3. Data Dimensions**
 Ensure your dataset is organized in the following dimension order:
 
-```
 [z, t, c, y, x, 2]
-```
 
 Here:
 - `z`: Number of slices in the dataset.
@@ -56,16 +52,17 @@ Here:
 - Use the `Switch to Image Space` button to toggle between **k-space** and **image space** views for the composite image.
 
 ### **5. View Coil Images**
-- Check the `Show Coil Images` box to enable the "Coil Images" tab, displaying all individual coil images in a scrollable grid layout.
+- Individual coil images can be opened in new tabs by clicking on a coil image in the main grid. These tabs allow synchronized slice and time navigation.
 
 ### **6. Navigate Time and Slices**
-- Use the **Time** and **Slice** sliders to explore different frames and slices of the dataset. These controls are synchronized for both the composite image and the coil images.
+- Use the **Time** and **Slice** sliders to explore different frames and slices of the dataset. These controls are synchronized for all views, including composite images and individual coil image tabs.
 
 ---
 
 ## **Future Improvements**
 - **Data Formats**: Add support for other file formats such as NIfTI or DICOM.
-- **Customize Input Shapes**: Add the ability load different data shapes including non-dynamic images.
+- **Customize Input Shapes**: Add the ability to load different data shapes including non-dynamic images.
 - **Advanced Tools**: Include region-of-interest (ROI) selection and measurements.
 
 ---
+
