@@ -1,5 +1,45 @@
+import vtk
 import h5py
 import numpy as np
+
+
+def loadmat(filename):
+    """
+    Load MATLAB v7.3 format .mat file using h5py.
+
+    Args:
+        filename (str): Path to the .mat file.
+
+    Returns:
+        dict: Dictionary of data loaded from the .mat file.
+    """
+    with h5py.File(filename, 'r') as f:
+        data = {}
+        for k, v in f.items():
+            if isinstance(v, h5py.Dataset):
+                data[k] = v[()]
+            elif isinstance(v, h5py.Group):
+                data[k] = loadmat_group(v)
+    return data
+
+
+def loadmat_group(group):
+    """
+    Load a group from MATLAB v7.3 format .mat file using h5py.
+
+    Args:
+        group (h5py.Group): Group from an HDF5 file.
+
+    Returns:
+        dict: Dictionary of data within the group.
+    """
+    data = {}
+    for k, v in group.items():
+        if isinstance(v, h5py.Dataset):
+            data[k] = v[()]
+        elif isinstance(v, h5py.Group):
+            data[k] = loadmat_group(v)
+    return data
 
 
 def load_kdata(filename):
@@ -45,42 +85,3 @@ def load_slice(kdata, time_index, slice_index):
     rss_image = np.sqrt(np.sum(np.abs(image_space) ** 2, axis=0))
 
     return rss_image
-
-
-def loadmat(filename):
-    """
-    Load MATLAB v7.3 format .mat file using h5py.
-
-    Args:
-        filename (str): Path to the .mat file.
-
-    Returns:
-        dict: Dictionary of data loaded from the .mat file.
-    """
-    with h5py.File(filename, 'r') as f:
-        data = {}
-        for k, v in f.items():
-            if isinstance(v, h5py.Dataset):
-                data[k] = v[()]
-            elif isinstance(v, h5py.Group):
-                data[k] = loadmat_group(v)
-    return data
-
-
-def loadmat_group(group):
-    """
-    Load a group from MATLAB v7.3 format .mat file using h5py.
-
-    Args:
-        group (h5py.Group): Group from an HDF5 file.
-
-    Returns:
-        dict: Dictionary of data within the group.
-    """
-    data = {}
-    for k, v in group.items():
-        if isinstance(v, h5py.Dataset):
-            data[k] = v[()]
-        elif isinstance(v, h5py.Group):
-            data[k] = loadmat_group(v)
-    return data
